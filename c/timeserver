@@ -1,0 +1,205 @@
+/* c.TimeServer
+ *
+ * Tserver: Acorn RFC868 Time Server module
+ *
+ * © Joseph Heenan, 1996-9
+ * All rights reserved.
+ *
+ */
+
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+
+#include "kernel.h"
+#include "swis.h"
+
+#include "sys/socket.h"
+#include "netinet/in.h"
+#include "sys/byteorder.h"
+#include "sys/errno.h"
+#include "sys/ioctl.h"
+
+extern int close(int /*s*/);
+
+#define TIME_PORT 37
+
+static _kernel_oserror inetserver_error = { 0x88000, "*** error ***" };
+
+static int timeserver_socket_udp=-1;
+
+/* number of event vector */
+#define EventV 0x10
+
+/* os_byte numbers */
+#define EnableEvent 14
+#define DisableEvent 13
+
+/* event number we're interested in */
+#define InternetEvent 19
+
+extern int event_entry(_kernel_swi_regs *regs, void *pw); /* CMHG function that calls out inet_event */
+
+
+static char *socket_err_string(void)
+{
+  static char ueb[32];
+
+  switch (errno) {
+    case 0: return "No error";
+    default:
+            sprintf(ueb,"Unknown error %d", errno);
+            return ueb;
+
+case ENOENT               : return "Not found"; /* 2 */
+case EBADF                : return "Invalid descriptor"; /* 9 */
+case EAGAIN               : return "No more ports"; /* 11 */
+case EFAULT               : return "Bad address"; /* 14 */
+case EINVAL               : return "Invalid argument"; /* 22 */
+case ENOSPC               : return "No space on device/DNS buffer overflow"; /* 28 */
+case EPIPE		  : return "Broken pipe"; /* 32 */
+case EWOULDBLOCK          : return "Operation would block"; /* 35 */
+case EINPROGRESS          : return "Operation now in progress"; /* 36 */
+case EALREADY             : return "Operation already in progress"; /* 37 */
+case ENOTSOCK             : return "Socket operation on non-socket"; /* 38 */
+case EDESTADDRREQ         : return "Destination address required"; /* 39 */
+case EMSGSIZE             : return "Message too long"; /* 40 */
+case EPROTOTYPE           : return "Protocol wrong type for socket";
+case ENOPROTOOPT          : return "Protocol not available"; /* 42 */
+case EPROTONOSUPPORT      : return "Protocol not supported"; /* 43 */
+case ESOCKTNOSUPPORT      : return "Socket type not supported"; /* 44 */
+case EOPNOTSUPP           : return "Operation not supported on socket"; /* 45 */
+case EPFNOSUPPORT         : return "Protocol family not supported";  /* 46 */
+case EAFNOSUPPORT         : return "Address family not supported by protocol family"; /* 47 */
+case EADDRINUSE           : return "Address already in use"; /* 48 */
+case EADDRNOTAVAIL        : return "Can't assign requested address"; /* 49 */
+case ENETDOWN             : return "Network is down"; /*/ 50 */
+case ENETUNREACH          : return "Network is unreachable"; /*/ 51 */
+case ENETRESET            : return "Network dropped connection on reset"; /*/ 52 */
+case ECONNABORTED         : return "Software caused connection abort"; /*/ 53 */
+case ECONNRESET           : return "Connection reset by peer"; /*/ 54 */
+case ENOBUFS              : return "No buffer space available"; /*/ 55 */
+case EISCONN              : return "Socket is already connected"; /*/ 56 */
+case ENOTCONN             : return "Socket is not connected"; /*/ 57 */
+case ESHUTDOWN            : return "Can't send after socket shutdown"; /*/ 58  */
+case ETOOMANYREFS         : return "Too many references: can't splice"; /*/ 59  */
+case ETIMEDOUT            : return "Connection timed out"; /*/ 60 */
+case ECONNREFUSED         : return "Connection refused"; /*/ 61  */
+case EHOSTDOWN            : return "Host is down"; /*/ 64 */
+case EHOSTUNREACH         : return "No route to host"; /*/ 65 */
+case 486		  : return "No internet stack available";
+  }
+}
+
+/* Routine to claim the internet event */
+static void register_claim(int claim, void *pw)
+{
+  _kernel_swi_regs regs;
+
+  /* claim event vector */
+
+  regs.r[0]= EventV;
+  regs.r[1]= (int) event_entry;
+  regs.r[2]= (int) pw;
+  _kernel_swi(claim ? OS_Claim : OS_Release, &regs, &regs);
+
+  /* enable internet event */
+  regs.r[0] = claim ? EnableEvent : DisableEvent;
+  regs.r[1] = InternetEvent;
+  _kernel_swi(OS_Byte, &regs, &regs);
+}
+
+
+/* Module initialisation routine */
+_kernel_oserror *tm_initialise(char *cmd_tail, int podule_base, void *private_word)
+{
+  struct sockaddr_in serv_addr;
+  int flag;
+
+  register_claim(1, private_word);
+
+  timeserver_socket_udp = socket(PF_INET, SOCK_DGRAM, 0);
+  if ( timeserver_socket_udp == -1 )
+  {
+    strcpy(inetserver_error.errmess,"Could not claim a socket - ");
+    goto close_abort;
+  }
+
+  flag=1;
+  ioctl(timeserver_socket_udp, FIOASYNC, &flag); /* Activate internet events */
+
+  flag=1;
+  ioctl(timeserver_socket_udp, FIONBIO, &flag); /* non-blocking. just in case */
+
+  serv_addr.sin_family        = AF_INET;
+  serv_addr.sin_port          = htons(TIME_PORT);
+  serv_addr.sin_addr.s_addr   = INADDR_ANY;
+
+  if ( bind(timeserver_socket_udp, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1 )
+  {
+    strcpy(inetserver_error.errmess,"Could not bind to time port - ");
+    goto close_abort;
+  }
+
+  return 0;
+
+  close_abort:
+
+  register_claim(0, private_word);
+
+  if (timeserver_socket_udp!=-1)
+  {
+    close(timeserver_socket_udp);
+    timeserver_socket_udp=-1;
+  }
+  strcat(inetserver_error.errmess, socket_err_string());
+  return &inetserver_error;
+}
+
+/* Module finalisation routine */
+_kernel_oserror *tm_finalise(int fatal, int podule, void *pw)
+{
+  register_claim(0, pw);
+
+  if (timeserver_socket_udp!=-1)
+    close(timeserver_socket_udp);
+
+  return NULL;
+}
+
+/* Routine called when an internet event occurs */
+int inet_event(_kernel_swi_regs *r, void *pw)
+{
+  struct sockaddr_in client_addr;
+  int size = sizeof(client_addr);
+  char buf[10];
+  time_t now;
+  int ret;
+
+  if (r->r[2] != timeserver_socket_udp) return 1;
+  if (r->r[1] != 1) return 0;
+
+  /* New data on our socket. */
+
+  ret=recvfrom(timeserver_socket_udp, buf, sizeof(buf), 0, (struct sockaddr *)&client_addr, &size );
+
+  if (ret<0)
+  {
+    /* humbug. error. */
+    return 0;
+  }
+  now = time(NULL);
+  now = mktime(gmtime(&now));
+  now+=2208988800U; // adjust to secs from 1900, rather than secs from 1970
+  {
+    char tmp;
+    char *buffer=(char *)&now;
+    tmp=buffer[2];buffer[2]=buffer[1];buffer[1]=tmp;
+    tmp=buffer[3];buffer[3]=buffer[0];buffer[0]=tmp;
+  }
+
+
+  sendto(timeserver_socket_udp, (char *)&now, sizeof(now), 0, (struct sockaddr *)&client_addr, size);
+
+  return 0; /* claim event */
+}

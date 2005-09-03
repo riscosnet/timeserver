@@ -1,0 +1,18 @@
+;/* cmhg.CModuleHdr
+; *
+; * Tserver: Acorn RFC868 Time Server module
+; *
+; * © Joseph Heenan, 1996-9
+; * All rights reserved.
+; *
+; */
+
+help-string:  Inet_TimeServer 0.01 © Joseph Heenan, 1997
+
+title-string: InetTServer
+
+initialisation-code: tm_initialise
+
+finalisation-code: tm_finalise
+
+event-handler: event_entry/inet_event 19
