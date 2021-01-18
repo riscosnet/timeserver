@@ -1,0 +1,43 @@
+# Project:   TimeServer
+
+
+# Toolflags:
+CCflags = -c -depend !Depend -IC:,netlib: -throwback -zM -Wa 
+C++flags = -c -depend !Depend -IC: -throwback
+Linkflags = -m -o $@ 
+ObjAsmflags = -depend !Depend -Stamp -quit -CloseExec
+CMHGflags = 
+LibFileflags = -c -o $@
+Squeezeflags = -o $@
+
+
+# Final targets:
+@.TimeServer:   @.o.CModuleHdr @.o.TimeServer C:o.Stubs NetLib:o.OnlySockzM 
+        Link $(Linkflags) @.o.CModuleHdr @.o.TimeServer C:o.Stubs \
+        NetLib:o.OnlySockzM 
+
+
+# User-editable dependencies:
+
+# Static dependencies:
+@.o.CModuleHdr:   @.cmhg.CModuleHdr
+        cmhg @.cmhg.CModuleHdr -o @.o.CModuleHdr
+@.o.TimeServer:   @.c.TimeServer
+        cc $(ccflags) -o @.o.TimeServer @.c.TimeServer 
+
+
+# Dynamic dependencies:
+o.TimeServer:	c.TimeServer
+o.TimeServer:	C:h.kernel
+o.TimeServer:	C:h.swis
+o.TimeServer:	netlib:sys.h.socket
+o.TimeServer:	Internet:sys.h.types
+o.TimeServer:	netlib:netinet.h.in
+o.TimeServer:	netlib:sys.h.types
+o.TimeServer:	netlib:sys.h.byteorder
+o.TimeServer:	netlib:sys.h.errno
+o.TimeServer:	netlib:sys.h.ioctl
+o.TimeServer:	Internet:sys.h.filio
+o.TimeServer:	Internet:sys.h.iocomm
+o.TimeServer:	Internet:sys.h.sockio
+o.TimeServer:	Internet:sys.h.iocomm

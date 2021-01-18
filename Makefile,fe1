@@ -1,43 +1,58 @@
-# Project:   TimeServer
+#!/usr/bin/env riscos-amu -f
+# Makefile for TimeServer
+#
 
+#
+# Program specific options:
+#
+COMPONENT  = TimeServer
 
-# Toolflags:
-CCflags = -c -depend !Depend -IC:,netlib: -throwback -zM -Wa 
-C++flags = -c -depend !Depend -IC: -throwback
-Linkflags = -m -o $@ 
-ObjAsmflags = -depend !Depend -Stamp -quit -CloseExec
-CMHGflags = 
-LibFileflags = -c -o $@
-Squeezeflags = -o $@
+#INITTARGET = inittarget
+# Specifies additional targets for startup
 
+#CLEANTARGET = cleantarget
+# Specifies additional targets for clean
 
-# Final targets:
-@.TimeServer:   @.o.CModuleHdr @.o.TimeServer C:o.Stubs NetLib:o.OnlySockzM 
-        Link $(Linkflags) @.o.CModuleHdr @.o.TimeServer C:o.Stubs \
-        NetLib:o.OnlySockzM 
+EXPORTS    =
+# Files to export as part of export_hdr or export_libs
+# To export to the standard C: path, you might use an export like:
+#   ${EXP_C_H}.${COMPONENT}SWIs
+# To export to the library in a subdirectory, use an export like:
+#   ${EXP_LIB}.${COMPONENT}.h.myheader
 
+#RESOURCES  = ${RESDIR}.${COMPONENT}.Messages
+# Resources you want to be exported as part of the 'resources' phase of the build
 
-# User-editable dependencies:
+INCLUDES   = TCPIPLibs:
+# Comma-separated list of paths to use for includes, such as:
+#	<Lib$Dir>.LibName.
 
-# Static dependencies:
-@.o.CModuleHdr:   @.cmhg.CModuleHdr
-        cmhg @.cmhg.CModuleHdr -o @.o.CModuleHdr
-@.o.TimeServer:   @.c.TimeServer
-        cc $(ccflags) -o @.o.TimeServer @.c.TimeServer 
+LIBS       = ${INETLIB} ${SOCKLIB5}
+# Space separated list of libraries to link against.
+# (${CLIB} is implicit, unless NOCLIB = yes)
 
+CDEFINES   =
+# Space separated list of defines to set, eg -DDEBUG
 
+OBJS       = o.cmodulehdr \
+			 o.timeserver
+# Objects to build, using the format o.<name> (will be varied for build type)
+
+include CModule
+
+# Additional dependencies
+$(OZDIR).timeserver: h.cmodulehdr
+
+# Export rules
+# For any files you export with EXPORTS you may need to include an
+# export rule
+# To export bare files you can use the ${CP} command:
+# ${EXP_LIB}.${COMPONENT}.h.myheader: h.myheader
+#        ${CP} $?  $@  ${CPFLAGS}
+
+cleantarget:
+           ${RM} h.cmodulehdr
+# This clean target removes any module header file that was built.
+
+#---------------------------------------------------------------------------
 # Dynamic dependencies:
-o.TimeServer:	c.TimeServer
-o.TimeServer:	C:h.kernel
-o.TimeServer:	C:h.swis
-o.TimeServer:	netlib:sys.h.socket
-o.TimeServer:	Internet:sys.h.types
-o.TimeServer:	netlib:netinet.h.in
-o.TimeServer:	netlib:sys.h.types
-o.TimeServer:	netlib:sys.h.byteorder
-o.TimeServer:	netlib:sys.h.errno
-o.TimeServer:	netlib:sys.h.ioctl
-o.TimeServer:	Internet:sys.h.filio
-o.TimeServer:	Internet:sys.h.iocomm
-o.TimeServer:	Internet:sys.h.sockio
-o.TimeServer:	Internet:sys.h.iocomm
