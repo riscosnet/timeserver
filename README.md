@@ -1,5 +1,4 @@
-TimeServer module !ReadMe
-~~~~~~~~~~~~~~~~~~~~~~~~~
+# TimeServer module
 
 Version 0.01, 26/10/97
 
@@ -13,16 +12,15 @@ If the module cannot bind to the time port to listen for requests, it will
 fail to startup. To stop your computer responding to time requests, simply
 do:
 
-*RMKill InetTServer
+    *RMKill InetTServer
 
 Any comments, suggestions or bug reports, please contact me:
 
 joseph@heenan.me.uk
 
-
 My other programs, and updates to this are available from:
 
 http://www.heenan.me.uk/acorn/download.html
 
-===================================================================
+---
 Joseph Heenan, 26/10/97

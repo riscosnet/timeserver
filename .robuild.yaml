@@ -23,6 +23,8 @@ jobs:
     script:
       - amu ram BUILD32=1
       - cdir Release
+      - copy README/md Release.!ReadMe ~CV~R
+      - copy Licence Release.Licence ~CV~R
       - copy rm32.TimeServer Release.TimeServer ~CV~R
 
     # Outputs from the build are defined in artifacts
