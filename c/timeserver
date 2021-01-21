@@ -14,11 +14,22 @@
 #include "kernel.h"
 #include "swis.h"
 
+#ifdef FREENET
 #include "sys/socket.h"
 #include "netinet/in.h"
 #include "sys/byteorder.h"
+#else
+#include "socklib.h"
+#include "netinet/in.h"
+#include "sys/socket.h"
+#endif
 #include "sys/errno.h"
 #include "sys/ioctl.h"
+
+#ifndef FREENET
+#define close socketclose
+#define ioctl socketioctl
+#endif
 
 extern int close(int /*s*/);
 
@@ -58,7 +69,9 @@ case EFAULT               : return "Bad address"; /* 14 */
 case EINVAL               : return "Invalid argument"; /* 22 */
 case ENOSPC               : return "No space on device/DNS buffer overflow"; /* 28 */
 case EPIPE		  : return "Broken pipe"; /* 32 */
+#if EAGAIN != EWOULDBLOCK
 case EWOULDBLOCK          : return "Operation would block"; /* 35 */
+#endif
 case EINPROGRESS          : return "Operation now in progress"; /* 36 */
 case EALREADY             : return "Operation already in progress"; /* 37 */
 case ENOTSOCK             : return "Socket operation on non-socket"; /* 38 */
